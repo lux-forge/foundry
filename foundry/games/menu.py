@@ -4,8 +4,8 @@
 # Author: Luxforge
 # Menu to host the games
 
-from menu import Menu
-from utils.logger import logger
+from foundry.menu.menu import Menu
+from foundry.utils.logger import logger
 
 class GamesMenu(Menu):
     """

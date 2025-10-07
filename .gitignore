@@ -1,4 +1,19 @@
+# Ignore pycache
+__pycache__/
+
 # Generic ignore files
 *.log
 *.tmp
 *.env
+
+# Ignore eggs and build directories
+*.egg-info/
+
+# Ignore the default log directory
+logs/*
+
+# Ignore prettier config files
+.prettierrc
+
+# Ignore pre-commit config file
+.pre-commit-config.yaml

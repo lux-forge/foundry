@@ -1,0 +1,11 @@
+[project]
+name = "luxforge-foundry"
+version = "0.1.0"
+description = "Modular utility suite for Rasputin-grade automation and lore-aligned workflows"
+authors = [{ name = "LuxForge", email = "lab@luxforge.dev" }]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+
+[project.scripts]
+luxforge = "foundry.__main__:main"

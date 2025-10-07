@@ -9,10 +9,10 @@ from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
 from time import sleep
-from utils.pathloader import paths
+from foundry.utils.paths import paths
 import os
 
-from utils.colours import Colours
+from foundry.utils.colours import Colours
 
 class Logger:
     """
@@ -48,9 +48,6 @@ class Logger:
         self.node = socket.gethostname()
         self.user = os.getenv("USER") or os.getenv("USERNAME") or "unknown"
 
-        # Set the version
-        self.version_info = self.__load_version()
-
         # Load environment variables from the specified .env file - puts them into os.environ
         load_dotenv(dotenv_path=env_path)
 
@@ -59,6 +56,11 @@ class Logger:
         
         # Set the base directory for logs
         self.log_dir = os.getenv("LOG_DIR", paths.logs)
+
+        # Create the dir if it does not exist
+        os.makedirs(self.log_dir, exist_ok=True)
+
+        # Set the base directory for logs
         self.base_dir = self.log_dir
 
         # Read configuration from environment variables with defaults
@@ -84,22 +86,11 @@ class Logger:
         self.__max_log_backup(int(os.getenv("MAX_LOG_BACKUP_COUNT", 5)))
 
         # Post a log entry indicating initialization
-        self.i(f"Logger initialized for node '{self.node}' by user '{self.user}'. Version: {self.version_info.get('version', 'unknown')}")
+        self.i(f"Logger initialized for node '{self.node}' by user '{self.user}'")
         self.i(f"Logging level set to {level_int} ({self.level})")
 
         # Show the current taskname
         self.__task()
-
-    def __load_version(self, version_file=f"{paths.root}/version.yaml") -> dict:
-        # Load version information from a YAML file
-        import yaml
-        try:
-            with open(version_file, "r") as f:
-                version_info = yaml.safe_load(f)
-            return version_info
-        except Exception as e:
-            self.log(f"Failed to load version info: {e}", level="ERROR")
-            return {}
     
     def __write(self, path, content, retries=3, timeout=1, encoding="utf-8"):
         for attempt in range(retries):
@@ -264,6 +255,9 @@ class Logger:
 
     # DEBUG level logging method
     def debug(self, message):
+        # If no message provided, return whether debug is enabled
+        if message is None:
+            return self.level == self.LEVELS["DEBUG"]
         self.log(message, level="DEBUG")
     dbg = debug # Alias for debug
     d = debug # Alias for debug

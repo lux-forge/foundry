@@ -19,7 +19,7 @@ class DockerMenu(Menu):
     menu_name = "Docker Menu"
     
     def load_docker_menu(self):
-        from docker.networking import DockerNetworkMenu
+        from foundry.docker.networking import DockerNetworkMenu
         DockerNetworkMenu(previous_menu=self).launch()
 
 if __name__ == "__main__":

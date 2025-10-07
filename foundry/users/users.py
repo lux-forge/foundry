@@ -4,11 +4,10 @@
 # Author: Luxforge
 # User management for Luxforge tools and docker containers
 
-from utils.pathloader import paths
-import re
-from menu import Menu
+from foundry.utils.paths import paths
+from foundry.menu.menu import Menu
 # Load the other classes and functions
-from utils.logger import logger
+from foundry.utils.logger import logger
 
 class UserMenu(Menu):
     """

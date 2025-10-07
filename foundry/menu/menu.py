@@ -8,17 +8,27 @@ import datetime
 import shutil
 import sys, os
 from abc import ABC
+import importlib
 
 # Load the other luxforge classes and functions
-from utils.logger import logger
-from utils.colours import Colours
-from utils.keyhandler import KeyHandler
+from foundry.utils.logger import logger
+from foundry.utils.colours import Colours
+from foundry.utils.keyhandler import KeyHandler
 
 class Menu(ABC):
     """
     Abstracted CLI menu for management tasks.
     """
-
+    MENU_META = {
+        "name": "MenuName",  # Display name
+        "desc": "A nice menu description",  # Description
+        "keys": ("callable a", "callable b")  # Callable keys
+    }
+    # List of module paths to search for menus
+    module_paths = [
+        "paths.to.custom.menu",
+        "paths.to.another.menu",
+    ]
     # Static options though they can be modified if necessary
     width = shutil.get_terminal_size((80, 20)).columns
     exit_options = ["X", "EXIT", "QUIT", "Q", None,""]
@@ -33,7 +43,6 @@ class Menu(ABC):
         "1": ("option 1", "example_method_1"),
         "A": ("option A", "example_method_A")
     } 
-    menu_name = "Base Menu"
     colours = {
         "title_border": "DEEP_MAGENTA",
         "title_info": "gray",
@@ -57,13 +66,36 @@ class Menu(ABC):
         "options_margin": 3
     }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     def __init__(self, selected_option: str = None, previous_menu: str = None):
+
+
+
+
+
         """
         Initialize the menu with optional selected option and previous menu.
         PARAM: selected_option - Option to launch directly, if None, show menu
                previous_menu - Previous menu instance, if any
         """
         # Ensure that subclasses override the options dict
+
+
+
+
+        
         if self.__class__ == Menu or self.options == Menu.options:
             logger.error(f"{self.__class__.__name__} must override static 'options' dict")
             raise NotImplementedError(f"{self.__class__.__name__} must override static 'options' dict")
@@ -97,6 +129,18 @@ class Menu(ABC):
 
         # Set up a key handler
         self.key_handler = KeyHandler()
+
+        # Discover menus in the tree and log them
+        self.registry = []
+        self.discover_menus_in_tree()
+        logger.debug(f"Discovered {len(self.registry)} menus in tree.")
+
+        for menu in self.registry:
+            for key in menu["keys"]:
+                self.options[key.upper()] = (
+                    menu["name"],
+                    lambda m=menu["module"], n=menu["name"]: getattr(m, n)().launch()
+                )
         
         # Load the setup script path - load can accept args to launch directly into functions
         if selected_option:
@@ -137,8 +181,10 @@ class Menu(ABC):
 
         # Generate header
         self.__generate_header()
-       # Display options - add a gap before back/exit options
+
+        # Display options - add a gap before back/exit options
         for key, (desc, method_name) in options.items():
+           
            if key in self.back_options:
                self.__boxify_middle(text="", type="options_space") # Add a blank line before back options
            elif key in self.exit_options:
@@ -204,7 +250,7 @@ class Menu(ABC):
         logger.debug(f"Validating user input: {choice} against options: {all_options}")
 
         if choice not in all_options:
-            print(f"[!] Invalid input. Please choose from: ({self.valid_options_as_str}) to proceed or ({self.exit_options_as_str}) to exit.", "red")
+            print(f"[!] Invalid input: {choice}. Please choose from: ({self.valid_options_as_str}) to proceed or ({self.exit_options_as_str}) to exit.", "red")
             input("Press Enter to continue...")
             return False
         
@@ -484,7 +530,7 @@ class Menu(ABC):
                 desc, _ = options[key]
                 prefix = "➤  " if i == selected else "    "
                 colour = self.border["option_colour"]
-
+                selected_key = key
                 # Highlight the selected option
                 if i == selected:
                     colour = "cyan"
@@ -498,29 +544,27 @@ class Menu(ABC):
 
             self.__boxify_middle(text="", type="options_space") # Add a blank line after options
             self.__boxify_middle(text=f"[?] Select an option ({self.valid_options_as_str}): ", type="option")
-        
-
-                
-            # Show typed input
-            typed = self.key_handler.get_typed()
-            
-            self.__boxify_top_bottom(title=False, top=False)
+            self.__boxify_top_bottom(title=False, top=False) # Bottom border
 
             # Handle key
-            raw = self.key_handler.get_key()
-            action = self.key_handler.interpret(raw)
+            logger.d(f"Selected option: {keys[selected]}. Waiting for keypress...")
+            
+            action = self.key_handler.get_key()
+            logger.i(f"Key action: {action}")
+            
+            # Hang the screen for debugging
+            if logger.debug:
+                pass
+                # input("DEBUG -- Checking keypresses...")
 
+            # Handle navigation keys
             if action == 'UP':
                 selected = (selected - 1) % len(keys)
             elif action == 'DOWN':
                 selected = (selected + 1) % len(keys)
             elif action == 'ENTER':
-                if typed and typed in keys:
-                    self.key_handler.reset()
-                    return typed
-                else:
-                    self.key_handler.reset()
-                    return keys[selected]
+                self.key_handler.reset()
+                return keys[selected]
             elif action == 'BACKSPACE':
                 # See if we have a previous menu, if so then return to it
                 if self.previous_menu:
@@ -531,7 +575,7 @@ class Menu(ABC):
             elif action == 'ESC':
                 self.key_handler.reset()
                 return None
-
+            
             # Handle alphabetic input for quick selection
             # Validate the input
             else: 
@@ -539,9 +583,91 @@ class Menu(ABC):
                     self.__handle_option(action)
                 else:
                     logger.error(f"Should not get to this point, break in logic!! Action: {action}")
-        
+
+    def __load_menu_meta(self):
+        """
+        Load MENU_META from a module path if it exists.
+        """
+
+    def discover_menus_in_tree(self):
+        """
+        Scan .py files in base_path and its immediate subdirectories.
+        Import modules and collect MENU_META dicts.
+        """
+
+        # Helper to build full module path
+        def module_path(rel_path):
+            return f"{base_module}.{rel_path.replace(os.sep, '.').rstrip('.py')}"
+
+        # Scan this directory
+        mod = sys.modules[self.__class__.__module__]
+        base_path = os.path.dirname(mod.__file__)
+        base_module = self.__class__.__module__
 
 
+        logger.debug(f"Scanning for menus in base path: {base_path} and module: {base_module}")
+        # For each entry in the base path -
+        for entry in os.listdir(base_path):
+            
+            logger.d(f"Scanning entry: {entry}")
+            # Full path of the entry
+            full_path = os.path.join(base_path, entry)
+
+            # If it's a .py file, load it - not this file though
+            if entry.endswith(".py") and not entry.startswith("__") and entry != os.path.basename(__file__):
+                
+                logger.d(f"Found python file: {entry} in base path: {base_path}")
+                # Get the module path and load it
+                mod_path = module_path(entry[:-3])
+
+                # Load the menu meta if it exists - it should be a dict. Add to registry if so
+                menu_meta = self.__load_menu_meta(mod_path)
+                if menu_meta:
+                    logger.d(f"Loaded menu meta for {mod_path}: {menu_meta}")
+                    self.registry += menu_meta
+
+            # Scan one-level subdirs
+            elif os.path.isdir(full_path):
+
+                # For each .py file in the subdir
+                for subfile in os.listdir(full_path):
+                    logger.d(f"Scanning subfile: {subfile} in directory: {entry}")
+                    # If it's a .py file, load it
+                    if subfile.endswith(".py") and not subfile.startswith("__"):
+                        logger.d(f"Found python file: {subfile} in directory: {entry}")
+
+                        # set the relative path and module path as a string
+                        mod_path = f"foundry.{entry}.{subfile[:-3]}"
+
+                        # Load the menu meta if it exists - it should be a dict. Add to registry if so
+                        menu_meta = self.__load_menu_meta(mod_path)
+                        if menu_meta:
+                            logger.d(f"Loaded menu meta for {mod_path}: {menu_meta}")
+                            self.registry += menu_meta
+
+    def __load_menu_meta(self,mod_path):
+        try:
+            mod = importlib.import_module(mod_path)
+            logger.debug(f"Loaded module: {mod_path}")
+            logger.debug(f"Module attributes: {dir(mod)}")
+
+            for attr_name in dir(mod):
+                attr = getattr(mod, attr_name)
+                if isinstance(attr, type) and hasattr(attr, "MENU_META"):
+                    meta = getattr(attr, "MENU_META")
+                    logger.debug(f"Found MENU_META in class: {attr_name} → {meta}")
+                    if isinstance(meta, dict):
+                        return [{
+                            "name": meta.get("name"),
+                            "desc": meta.get("desc"),
+                            "keys": meta.get("keys", []),
+                            "module": mod,
+                            "class": attr
+                        }]
+            logger.debug("No MENU_META found in any class.")
+        except Exception as e:
+            logger.warning(f"[!] Failed to load {mod_path}: {e}")
+        return []
 
 # Menu if launched directly - used for testing
 if __name__ == "__main__":
