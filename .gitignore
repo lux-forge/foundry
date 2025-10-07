@@ -1,0 +1,4 @@
+# Generic ignore files
+*.log
+*.tmp
+*.env
