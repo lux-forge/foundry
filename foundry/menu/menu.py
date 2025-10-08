@@ -10,6 +10,8 @@ import sys, os
 from abc import ABC
 import importlib
 
+from pathlib import Path
+
 # Load the other luxforge classes and functions
 from foundry.utils.logger import logger
 from foundry.utils.colours import Colours
@@ -21,14 +23,8 @@ class Menu(ABC):
     """
     MENU_META = {
         "name": "MenuName",  # Display name
-        "desc": "A nice menu description",  # Description
-        "keys": ("callable a", "callable b")  # Callable keys
+        "desc": "A nice menu description"  # Description
     }
-    # List of module paths to search for menus
-    module_paths = [
-        "paths.to.custom.menu",
-        "paths.to.another.menu",
-    ]
     # Static options though they can be modified if necessary
     width = shutil.get_terminal_size((80, 20)).columns
     exit_options = ["X", "EXIT", "QUIT", "Q", None,""]
@@ -37,12 +33,6 @@ class Menu(ABC):
     default_positive = ["Y", "YES", "1", "TRUE", ""]
     
     # Default options - subclasses should override this
-    options = {
-        # Dictionary to hold menu options and their corresponding functions
-        # Note that exit and back options are added automatically
-        "1": ("option 1", "example_method_1"),
-        "A": ("option A", "example_method_A")
-    } 
     colours = {
         "title_border": "DEEP_MAGENTA",
         "title_info": "gray",
@@ -66,56 +56,70 @@ class Menu(ABC):
         "options_margin": 3
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-    def __init__(self, selected_option: str = None, previous_menu: str = None):
-
-
-
-
+    def __init__(self, selected_option: str = None, previous_menu = None):
 
         """
         Initialize the menu with optional selected option and previous menu.
         PARAM: selected_option - Option to launch directly, if None, show menu
                previous_menu - Previous menu instance, if any
         """
-        # Ensure that subclasses override the options dict
-
-
-
-
-        
-        if self.__class__ == Menu or self.options == Menu.options:
-            logger.error(f"{self.__class__.__name__} must override static 'options' dict")
-            raise NotImplementedError(f"{self.__class__.__name__} must override static 'options' dict")
 
         # Set the main variables used by all subclasses
         self.selected_option = selected_option
 
+        from pathlib import Path
+        import sys
+
+       # Switch the logger to this menu's name
+        task = logger.task(self.MENU_META.get("name", "Menu").strip().replace(" ", "_").lower())
+        logger.info(f"Initializing menu: {task}")
+        logger.debug(f"Menu description: {self.MENU_META.get('desc', 'A nice menu description')}")
+        logger.debug(f"[🧬] Loader running from: {self.__class__.__module__}")
+        logger.debug(f"[📁] Loader file: {sys.modules[self.__class__.__module__].__file__}")
+
         # Set the previous menu - used for returning to previous menu if needed
         self.previous_menu = previous_menu
 
-        # Generate a callable list of valid options for user input validation
+        # Set the menu name from MENU_META
+        self.menu_name = self.MENU_META.get("name", "Menu")
+        self.menu_desc = self.MENU_META.get("desc", "A nice menu description")
+        
+        # Set the options dict - this is in a method to allow dynamic loading
+        self.options = {}
+        self._set_options()  # Make a copy to avoid modifying the class variable - cannot use double underscore as subclasses need to override this
+
+        # Start with numbers for each option as valid options
         self.valid_options_as_list = list(self.options.keys())
 
+        # Discover menus in the tree and log them
+        self.registry = []
+        self.discover_menus_in_tree()
+        logger.debug(f"Discovered {len(self.registry)} menus in tree.")
+
+        # For each discovered menu, add its keys to the options dict - the key is a string description of the menu
+        for menu in self.registry:
+            # Set the key as the next number in sequence
+            key= str(len(self.valid_options_as_list) + 1)
+            # Get the class and name
+            cls = menu["class"]
+            label = menu["name"]
+
+            # Define the action as a lambda to launch the menu
+            action = lambda cls=cls, parent=self: cls(previous_menu=parent).launch()
+
+            # Assign a numbered key or use MENU_META["keys"] if present
+            self.options[key] = (label, action)
+
+            # Add the key to the valid options list
+            self.valid_options_as_list.append(key)
+           
         # if there is a previous menu, add back options to valid options
         if self.previous_menu:
             self.valid_options_as_list += self.back_options
-            # Add back option to options dict if not already present
-            for back_option in self.back_options:
-                if back_option not in self.options:
-                    self.options["B"] = (f"Back to {self.previous_menu.menu_name}", "return_to_previous_menu")
+            logger.debug(f"Back options added to valid options: {self.back_options}")
+
+            # Add back option to options dict
+            self.options["B"] = ("Return to Previous Menu", self.return_to_previous_menu)
 
         # Add exit options to valid options
         self.valid_options_as_list += self.exit_options
@@ -129,18 +133,6 @@ class Menu(ABC):
 
         # Set up a key handler
         self.key_handler = KeyHandler()
-
-        # Discover menus in the tree and log them
-        self.registry = []
-        self.discover_menus_in_tree()
-        logger.debug(f"Discovered {len(self.registry)} menus in tree.")
-
-        for menu in self.registry:
-            for key in menu["keys"]:
-                self.options[key.upper()] = (
-                    menu["name"],
-                    lambda m=menu["module"], n=menu["name"]: getattr(m, n)().launch()
-                )
         
         # Load the setup script path - load can accept args to launch directly into functions
         if selected_option:
@@ -168,9 +160,21 @@ class Menu(ABC):
             if selected_option:
                 self.__handle_option(selected_option)
             else:
-                self.__show_menu(self.options)
+                self.__show_menu()
 
-    def __show_menu(self, options: dict = None):
+    def _set_options(self):
+        """
+        Set the options dict for the menu.
+        This is in a method to allow dynamic loading if needed.
+        """
+        self.options = {
+            # List of dictionaries to hold menu options and their corresponding functions
+            # Note that exit and back options are added automatically
+            "1": ("option 1", self.example_method_1),
+            "2": ("option A", self.example_method_A)
+        }
+
+    def __show_menu(self):
         """
         Display the options as a menu with a header
         PARAM: options - Dictionary of options to display. Can be overridden by subclasses.
@@ -183,7 +187,7 @@ class Menu(ABC):
         self.__generate_header()
 
         # Display options - add a gap before back/exit options
-        for key, (desc, method_name) in options.items():
+        for key, (desc) in self.options.items():
            
            if key in self.back_options:
                self.__boxify_middle(text="", type="options_space") # Add a blank line before back options
@@ -195,7 +199,7 @@ class Menu(ABC):
         self.__boxify_top_bottom(title=False, top=False) # Bottom border
         
         # Request user input - strip whitespace and convert to uppercase
-        choice = self.__interactive_select(options)
+        choice = self.__interactive_select()
 
         # Validate input
         valid_input = self.__validate_user_input(choice)
@@ -210,19 +214,12 @@ class Menu(ABC):
         PARAM: option - The selected option to handle
         """
 
-        # Get the method name from the options dict
-        method_name = self.options[option][1]
-
-        # Get the method from the class
-        method = getattr(self, method_name, None)
-
-        # If the method exists and is callable, call it
+        desc, method = self.options[option]
+        logger.info(f"[AUDIT] Triggered: {option} → {desc}")
         if callable(method):
-            logger.info(f"Launching option '{option}': {self.options[option][0]}")
             method()
         else:
-            self.__print(f"[!] Method '{method_name}' for option '{option}' is not implemented.", "red")
-            input("Press Enter to continue...")
+            logger.warning(f"[!] Option '{option}' is not callable.")
         
     def __print(self, message, colour=None, bold=False, underline=False, reverse=False):
         # Using colours module for coloured output
@@ -250,7 +247,7 @@ class Menu(ABC):
         logger.debug(f"Validating user input: {choice} against options: {all_options}")
 
         if choice not in all_options:
-            print(f"[!] Invalid input: {choice}. Please choose from: ({self.valid_options_as_str}) to proceed or ({self.exit_options_as_str}) to exit.", "red")
+            self.__print(f"[!] Invalid input: {choice}. Please choose from: ({self.valid_options_as_str}) to proceed or ({self.exit_options_as_str}) to exit.", "red")
             input("Press Enter to continue...")
             return False
         
@@ -476,7 +473,7 @@ class Menu(ABC):
     
     def __clear(self):
         # Clear the terminal screen
-        os.system('clear' if os.name == 'posix' else 'cls')
+        print("\033c", end="")
 
     def __generate_header(self):
         # Generate a consistent header for all menus
@@ -488,7 +485,7 @@ class Menu(ABC):
         
         # Print the title and timestamp
         self.__boxify_middle(text="", type="title_space") # Blank line after top border
-        self.__boxify_middle(text=self.menu_name, type="title")
+        self.__boxify_middle(text=self.MENU_META["name"], type="title")
         self.__boxify_middle(text=f"{node}  ::  {timestamp}", type="title_info")
         self.__boxify_middle(text="", type="title_space") # Blank line before bottom border
         self.__boxify_top_bottom(title=True, top=False)
@@ -509,7 +506,7 @@ class Menu(ABC):
         ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
         return ansi_escape.sub('', text)
     
-    def __interactive_select(self, options: dict) -> str:
+    def __interactive_select(self) -> str:
         """
         Interactive selection of options using arrow keys and typing.
         PARAM: options - Dictionary of options to display
@@ -517,7 +514,7 @@ class Menu(ABC):
         """
 
         # Get the keys as a list for indexing
-        keys = list(options.keys())
+        keys = list(self.options.keys())
         selected = 0
 
         # Wait for user input
@@ -527,7 +524,7 @@ class Menu(ABC):
 
             # Render options
             for i, key in enumerate(keys):
-                desc, _ = options[key]
+                desc, _ = self.options[key]
                 prefix = "➤  " if i == selected else "    "
                 colour = self.border["option_colour"]
                 selected_key = key
@@ -543,7 +540,7 @@ class Menu(ABC):
                 self.__boxify_middle(text=styled, type="option")
 
             self.__boxify_middle(text="", type="options_space") # Add a blank line after options
-            self.__boxify_middle(text=f"[?] Select an option ({self.valid_options_as_str}): ", type="option")
+            self.__boxify_middle(text=f"[?] Select an option ({self.valid_options_as_str}): {keys[selected]}", type="option")
             self.__boxify_top_bottom(title=False, top=False) # Bottom border
 
             # Handle key
@@ -584,66 +581,121 @@ class Menu(ABC):
                 else:
                     logger.error(f"Should not get to this point, break in logic!! Action: {action}")
 
-    def __load_menu_meta(self):
-        """
-        Load MENU_META from a module path if it exists.
-        """
-
     def discover_menus_in_tree(self):
         """
-        Scan .py files in base_path and its immediate subdirectories.
+        Recursively scan .py files under base_path.
         Import modules and collect MENU_META dicts.
         """
 
-        # Helper to build full module path
-        def module_path(rel_path):
-            return f"{base_module}.{rel_path.replace(os.sep, '.').rstrip('.py')}"
+        modDirs = self.__retrieve_mod_subdirs()
+        logger.debug(f"Discovered {len(modDirs)} module files in subdirectories.")
+        for mod_path in modDirs:
+            metas = self.__load_menu_meta(mod_path)
+            self.registry.append(metas) if metas else None
 
-        # Scan this directory
-        mod = sys.modules[self.__class__.__module__]
-        base_path = os.path.dirname(mod.__file__)
-        base_module = self.__class__.__module__
+    def __resolve_module_path(self, loader_path: str, import_root: str, sub_dir: str = None) -> str:
+        """
+        Resolve the module path from a file path.
+        """
+        if sub_dir:
+            # Attach full dir to sub dirs
+            full_dir = str(os.path.join(loader_path, sub_dir))
+        else:
+            # Otherwise just use the loader path
+            full_dir = str(loader_path)
+        
+        logger.debug(f"[📁] Full module path of dir:{full_dir}")
 
+        # Need to drop the root path and convert to module path
+        module_path = full_dir.replace(import_root, "")
+        logger.debug(f"[📁] Module path of dir:{module_path}")
 
-        logger.debug(f"Scanning for menus in base path: {base_path} and module: {base_module}")
-        # For each entry in the base path -
-        for entry in os.listdir(base_path):
+        # Now drop the leading / or \ and convert to module path
+        if module_path.startswith(os.sep):
+            module_path = module_path[1:]
+
+        # Account for trailing slash
+        if module_path.endswith(os.sep):
+            module_path = module_path[:-1]
+
+        # Convert os.sep to . to form module path
+        module_path = module_path.replace(os.sep, ".")
+
+        # Minor string for logging
+        smstr = f"sub " if sub_dir else ""
+        logger.debug(f"[📁] Module path of {smstr}dir:{module_path}")
+        return module_path
+
+    def __retrieve_mod_subdirs(self):
+        """
+        Retrieve all module files in the menu directory and 1st level subdirectories.
+        """
+
+        # Get the directory of this file
+        loader_path = os.path.dirname(sys.modules[self.__class__.__module__].__file__)
+        
+        # Get the module path of this class
+        mod_path = Path(sys.modules[self.__class__.__module__].__file__).resolve()
+
+        # Traverse upward until we find the 'foundry' folder
+        while mod_path.name != 'foundry':
+            mod_path = mod_path.parent
+
+        # The import root is the parent of 'foundry'
+        import_root = str(mod_path.parent)
+        import_root = import_root[0].lower() + import_root[1:]
+
+        # Log the import root and loader path - nuances of case sensitivity
+        logger.info(f"Import root set to: {import_root}")
+        
+        logger.debug(f"[📁] Loader path: {loader_path}")
+        
+        # Get all sub dirs in the path that dont start with __
+        sub_dirs = [d for d in os.listdir(loader_path) if os.path.isdir(os.path.join(loader_path, d)) and not d.startswith("__")]
+        logger.debug(f"[📁] VALID Sub directories in loader path: {sub_dirs}")
+        
+        modFilePaths = []
+        # For each sub dir, log the full path and module path
+        for d in sub_dirs:
+            full_dir = str(os.path.join(loader_path, d))
+            module_path = self.__resolve_module_path(loader_path=loader_path, import_root=import_root, sub_dir=d)
             
-            logger.d(f"Scanning entry: {entry}")
-            # Full path of the entry
-            full_path = os.path.join(base_path, entry)
+            # Now scan for .py files in this sub dir
+            modFilePaths += self.__retrieve_mod_files(dir=full_dir,module_path=module_path)
+        
+        # Now add the module path for the root dir
+        module_path = self.__resolve_module_path(loader_path=loader_path, import_root=import_root)
+        
+        # Also scan the root dir for .py files
+        modFilePaths += self.__retrieve_mod_files(dir=loader_path,module_path=module_path)
 
-            # If it's a .py file, load it - not this file though
-            if entry.endswith(".py") and not entry.startswith("__") and entry != os.path.basename(__file__):
+        logger.debug(f"Total Python files found: {len(modFilePaths)}")
+        return modFilePaths
+
+    def __retrieve_mod_files(self,dir : str = None,module_path: str = None) -> list:
+        """
+        Retrieve all module files in the directory.
+        """
+        # Resolve the dir to use
+        if dir is None:
+            logger.error("Directory is required for retrieve_mod_files.")
+            return []
+        if not os.path.isdir(dir):
+            logger.error(f"Directory '{dir}' does not exist for retrieve_mod_files.")
+            return []
+        logger.debug(f"Retrieving module files from directory: {dir}")
+        modFiles = []
+        for file in os.listdir(dir):
+
+            # Get only .py files that are not __init__.py or this file
+            if file.endswith(".py") and not file.startswith("__") and file != os.path.basename(__file__):
                 
-                logger.d(f"Found python file: {entry} in base path: {base_path}")
-                # Get the module path and load it
-                mod_path = module_path(entry[:-3])
-
-                # Load the menu meta if it exists - it should be a dict. Add to registry if so
-                menu_meta = self.__load_menu_meta(mod_path)
-                if menu_meta:
-                    logger.d(f"Loaded menu meta for {mod_path}: {menu_meta}")
-                    self.registry += menu_meta
-
-            # Scan one-level subdirs
-            elif os.path.isdir(full_path):
-
-                # For each .py file in the subdir
-                for subfile in os.listdir(full_path):
-                    logger.d(f"Scanning subfile: {subfile} in directory: {entry}")
-                    # If it's a .py file, load it
-                    if subfile.endswith(".py") and not subfile.startswith("__"):
-                        logger.d(f"Found python file: {subfile} in directory: {entry}")
-
-                        # set the relative path and module path as a string
-                        mod_path = f"foundry.{entry}.{subfile[:-3]}"
-
-                        # Load the menu meta if it exists - it should be a dict. Add to registry if so
-                        menu_meta = self.__load_menu_meta(mod_path)
-                        if menu_meta:
-                            logger.d(f"Loaded menu meta for {mod_path}: {menu_meta}")
-                            self.registry += menu_meta
+                # Resolve the full path and pass to the list as tuple with the module path
+                file_path = os.path.join(dir, file)
+                logger.debug(f"Found module file: {file_path}")
+                modFiles.append( f"{module_path}.{file[:-3]}")
+        logger.debug(f"Found len({modFiles}) files in directory: {dir}")
+        return modFiles
 
     def __load_menu_meta(self,mod_path):
         try:
@@ -657,10 +709,13 @@ class Menu(ABC):
                     meta = getattr(attr, "MENU_META")
                     logger.debug(f"Found MENU_META in class: {attr_name} → {meta}")
                     if isinstance(meta, dict):
+                        # Skip this super class
+                        if meta.get("name") == "MenuName":
+                            logger.debug(f"Skipping base Menu class in {mod_path}")
+                            continue
                         return [{
                             "name": meta.get("name"),
                             "desc": meta.get("desc"),
-                            "keys": meta.get("keys", []),
                             "module": mod,
                             "class": attr
                         }]

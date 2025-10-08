@@ -6,6 +6,7 @@
 
 from foundry.menu.menu import Menu
 from foundry.utils.paths import PathLoader
+from foundry.utils.logger import logger
 
 
 class GitMenu(Menu):
@@ -15,17 +16,29 @@ class GitMenu(Menu):
 
     MENU_META = {
         "name": "GitMenu",
-        "desc": "Menu selection items for git - push, pull, rebranch etc",
-        "keys": ("git", "g"),
+        "desc": "Menu selection items for git - push, pull, rebranch etc"
     }
 
-    menu_name = "Git Menu"
-    options = {
-        "1": ("Trial request_path()", "trial_request_path"),
-        # Future options:
-        # "2": ("Run breadcrumbs injector", "run_breadcrumbs"),
-        # "3": ("Emit changelog", "emit_changelog")
-    }
+    def _set_options(self):
+        self.options = {
+            "1": ("Clone repo", self.clone_repo),
+            "2": ("Push changes", self.push_changes),
+            "3": ("View status", self.view_status),
+            "4": ("Trial request path", self.trial_request_path),
+
+        }
+
+    def clone_repo(self):
+        logger.warning("Clone repo functionality is not yet implemented.")
+        input("Press Enter to return to the menu...")
+
+    def push_changes(self):
+        logger.warning("Push changes functionality is not yet implemented.")
+        input("Press Enter to return to the menu...")
+
+    def view_status(self):
+        logger.warning("View status functionality is not yet implemented.")
+        input("Press Enter to return to the menu...")
 
     def trial_request_path(self):
         path = PathLoader.request_path("Enter a directory to trial path resolution")

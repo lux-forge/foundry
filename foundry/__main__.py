@@ -6,7 +6,7 @@
 def main():
 
     # Import the main menu and launch it
-    from foundry.menu.main_menu import MainMenu
+    from main_menu import MainMenu
     main_menu = MainMenu().launch()
 
 if __name__ == "__main__":

@@ -13,34 +13,28 @@ class UserMenu(Menu):
     """
     Interactive CLI menu for user management tasks.
     """
-    options_new = {
-        # Desc - Display Name - Method Name - Callable Values. Will need to upgrade all submenus to this format
-        "A": ("Add User", "add_user",("A","add","adduser","addusers","new","newuser","newusers")),
-        "D": ("Delete User", "delete_user",("D","delete","deleteuser","deleteusers")),
-        "L": ("List Users", "list_users",("L","list","listusers")),
-        "C": ("Create Users from File", "create_users_from_file",("C","create","createusers","createusersfromfile","createusersfromcsv","createusersfromtxt")),
+    MENU_META = {
+        "name": "UserMenu",  # Display name
+        "desc": "Menu for managing users"  # Description
     }
-
-    options = {
-        "C": ("Create User", "create_user"),
-        "D": ("Delete User", "delete_user"),
-        "L": ("List Users", "list_users"),
-        "F": ("Create Users from File", "create_users_from_file"),
-    }
-    menu_name = "User Management Menu"
-
-    
+    def _set_options(self):
+        self.options = {
+            "C": ("Create User", self.create_user),
+            "D": ("Delete User", self.delete_user),
+            "L": ("List Users", self.list_users),
+            "F": ("Create Users from File", self.create_users_from_file),
+        }    
     def create_user(self, 
-                    username: str = None, 
-                    password: str = None, 
-                    uid: int = None, 
-                    gid: int = None, 
-                    home_dir: bool = None, 
-                    shell: str = "/bin/bash", 
-                    service_account: bool = False,
-                    ssh_key: bool = False,
-                    known_hosts: bool = False
-                    ):
+        username: str = None, 
+        password: str = None, 
+        uid: int = None, 
+        gid: int = None, 
+        home_dir: bool = None, 
+        shell: str = "/bin/bash", 
+        service_account: bool = False,
+        ssh_key: bool = False,
+        known_hosts: bool = False
+    ):
         """
         Create a new user with the given parameters.
         PARAMS: username: str - The username for the new user.
@@ -95,7 +89,7 @@ class UserMenu(Menu):
         
         env = EnvProfile()
 
-        env_files = find_all_files(f"{paths.luxforge}/users/", "*.env")
+        env_files = find_all_files(f"{paths.root}/users/", "*.env")
 
         # Extract the example env file
         for file in env_files:
@@ -107,12 +101,12 @@ class UserMenu(Menu):
         # Check if there are any other env files
         if not env_files:
             env_files = [example_env_file] 
-            print(f"[WARNING] No user .env files found in {paths.luxforge}/users/. Using example file: {example_env_file}")
+            print(f"[WARNING] No user .env files found in {paths.root}/users/. Using example file: {example_env_file}")
             # Save the env file to the users dir
-            os.makedirs(f"{paths.luxforge}/users/", exist_ok=True)
+            os.makedirs(f"{paths.root}/users/", exist_ok=True)
             import shutil
-            shutil.copy(example_env_file, f"{paths.luxforge}/users/changeme.env")
-            print(f"[INFO] Created example user .env file: {paths.luxforge}/users/changeme.env")
+            shutil.copy(example_env_file, f"{paths.root}/users/changeme.env")
+            print(f"[INFO] Created example user .env file: {paths.root}/users/changeme.env")
         
         # Load the env files
         env.load_keys(env_files, skip_list=[])
@@ -198,3 +192,7 @@ class UserMenu(Menu):
         print("Current users:")
         for user in users:
             print(f"- {user}")
+
+    def create_users_from_file(self):
+        logger.warning("Create users from file functionality is not yet implemented.")
+        input("Press Enter to return to the menu...")

@@ -4,18 +4,17 @@
 # Author: Luxforge
 # Crack the boredom lottery. Win prizes. Have fun.
 
-from menu import Menu
+from foundry.menu.menu import Menu
 
 class LotteryMenu(Menu):
     """
     Interactive CLI menu for lottery tasks.
     """
-    options = {
-        "G": ("Generate Numbers", "generate_numbers"),
-        "F": ("Generate Fact", "generate_fact"),
-        "C": ("Flip Coin", "flip_coin"),
-        "R": ("Roll Dice", "roll_dice")    
+    MENU_META = {
+        "name": "Lottery Menu",  # Display name
+        "desc": "Menu for lottery tasks"  # Description
     }
+
 
     lottery_phrases = [
         "Feeling lucky?",
@@ -30,7 +29,14 @@ class LotteryMenu(Menu):
         "Luck is believing you're lucky.",
         "The best luck of all is the luck you make for yourself."
     ]
-    menu_name = "Lottery Menu"
+    def _set_options(self):
+
+        self.options = {
+            "G": ("Generate Numbers", self.generate_numbers),
+            "F": ("Generate Fact", self.generate_fact),
+            "C": ("Flip Coin", self.flip_coin),
+            "R": ("Roll Dice", self.roll_dice)
+        }
     
     def __validate_number(self, int):
         """

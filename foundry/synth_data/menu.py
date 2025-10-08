@@ -5,20 +5,25 @@
 # Synth Data Menu
 
 from menu import Menu
-from luxforge.utils.logger import logger
+from foundry.utils.logger import logger
 from synth_data import SynthData
-from luxforge.utils.pathloader import paths
+from foundry.utils.pathloader import paths
 
 class SynthDataMenu(Menu):
     """
     Interactive CLI menu for managing synthetic data generation tasks.
     """
-    options = {
-        "G": ("Generate Synthetic Data", "generate_synthetic_data"),
-        "V": ("View Generated Data", "view_generated_data"),
-        "C": ("Configure Data Parameters", "configure_data_parameters"),
+
+    MENU_META = {
+        "name": "SynthDataMenu",  # Display name
+        "desc": "Menu for generating and managing synthetic data"  # Description
     }
-    menu_name = "Synthetic Data Menu"
+    def _set_options(self):
+        self.options = {
+            "G": ("Generate Synthetic Data", self.generate_synthetic_data),
+            "V": ("View Generated Data", self.view_generated_data),
+            "C": ("Configure Data Parameters", self.configure_data_parameters),
+        }
     
     def generate_synthetic_data(self):
         synth_data = SynthData()

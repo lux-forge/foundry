@@ -52,7 +52,7 @@ class Logger:
         load_dotenv(dotenv_path=env_path)
 
         # Initialize current task and log filename
-        self.task = "init"
+        self.__task = "init"
         
         # Set the base directory for logs
         self.log_dir = os.getenv("LOG_DIR", paths.logs)
@@ -90,7 +90,7 @@ class Logger:
         self.i(f"Logging level set to {level_int} ({self.level})")
 
         # Show the current taskname
-        self.__task()
+        self.__task
     
     def __write(self, path, content, retries=3, timeout=1, encoding="utf-8"):
         for attempt in range(retries):
@@ -112,7 +112,7 @@ class Logger:
         self.__update_directory()
 
         # Create a safe task tag for the filename
-        task_tag = self.task.replace(" ", "_") if self.task else "untagged"
+        task_tag = self.__task.replace(" ", "_") if self.__task else "untagged"
         self.filename = os.path.join(self.log_dir, f"{task_tag}_{timestamp}.log")
     
     def __update_directory(self):
@@ -122,22 +122,22 @@ class Logger:
         month_path = datetime.now().strftime("%Y-%m")
         day_path = datetime.now().strftime("%Y-%m-%d")
         date_path = os.path.join(year_path, month_path, day_path)
-        self.log_dir = os.path.join(self.base_dir, self.task, date_path)
+        self.log_dir = os.path.join(self.base_dir, self.__task, date_path)
 
         # Ensure the log directory exists
         os.makedirs(self.log_dir, exist_ok=True)
 
-    def __task(self, task_name: str = None) -> str:
+    def task(self, task_name: str = None) -> str:
         # Method to set or get the current task name
         if task_name:
-            self.i(f"Switching task from '{self.task}' to '{task_name}'")
-            self.task = task_name
+            self.i(f"Switching task from '{self.__task}' to '{task_name}'")
+            self.__task = task_name
             # Update the filename to reflect the new task
             self.__update_filename()
             self.__update_directory()
         else:
-            self.i(f"Set task to: {self.task}")
-        return self.task
+            self.i(f"Set task to: {self.__task}")
+        return self.__task
 
     def __formatted_timestamp(self) -> str:
         # Return the current timestamp formatted according to date_format and decimal_digits

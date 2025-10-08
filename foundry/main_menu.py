@@ -4,23 +4,22 @@
 # Author: Luxforge
 # Main menu launcher for Luxforge tools
 
-
-from menu.menu import Menu
 # Load the other classes and functions
+from menu.menu import Menu
+from utils.logger import logger
 
 class MainMenu(Menu):
     """
     Interactive CLI menu for management tasks.
     """
-    options = {
-        "D": ("Docker", "load_docker_menu"),
-        "P": ("Load Paths", "load_paths_menu"),
-        "U": ("User Management", "load_user_menu"),
-        "G": ("Games", "load_games_menu"),
-        "1": ("Git Utilities", "load_git_menu")
+    MENU_META = {
+        "name": "Main Menu",  # Display name
+        "desc": "Main menu for managing various tasks"  # Description
     }
-    menu_name = "Main Menu"
+
     
+    def _set_options(self):
+        logger.d("Setting main menu options - none needed as this will be dynamic")
     def load_docker_menu(self):
         from foundry.docker.menu import DockerMenu
         DockerMenu(previous_menu=self).launch()

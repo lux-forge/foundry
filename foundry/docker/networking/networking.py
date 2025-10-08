@@ -5,9 +5,9 @@
 
 import os
 import subprocess
-from utils.logger import logger
-from menu import Menu
-from utils.colours import Colours
+from foundry.utils.logger import logger
+from foundry.menu.menu import Menu
+from foundry.utils.colours import Colours
 
 class NetworkProfile:
     """
@@ -225,12 +225,17 @@ class DockerNetworkMenu(Menu):
     """
     Interactive CLI menu for Docker network profile management tasks.
     """
-    options = {
-        "1": ("View Network Profiles", "view_profiles"),
-        "2": ("See Current Networks", "show_docker_networks"),
-        "C": ("Create Networks", "create_networks"),
+
+    MENU_META = {
+        "name": "Docker Network Menu",  # Display name
+        "desc": "Menu for managing Docker network profiles"  # Description
     }
-    menu_name = "Docker Network Menu"
+    def _set_options(self):
+        self.options = {
+            "1": ("View Network Profiles", self.view_profiles),
+            "2": ("See Current Networks", self.show_docker_networks),
+            "3": ("Create Networks", self.create_networks),
+        }
 
     def create_networks(self):
         self._show_menu(self.create_networks_options)
@@ -294,6 +299,6 @@ class DockerNetworkMenu(Menu):
 network_profile = NetworkProfile()
 
 if __name__ == "__main__":  
-    from luxforge.utils.logger import logger
+    from foundry.utils.logger import logger
     docker_menu = DockerNetworkMenu()
     docker_menu.launch()
