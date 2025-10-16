@@ -1,10 +1,22 @@
 # Ignore pycache
 __pycache__/
 
+# Ignore packaging files and directories
+dist/
+
+# Ignore secret files
+.secrets/
+
+# Ignore creds and environment files
+*.pypirc
+*.env
+
 # Generic ignore files
 *.log
 *.tmp
-*.env
+
+# Ignore git files
+*.git
 
 # Ignore eggs and build directories
 *.egg-info/

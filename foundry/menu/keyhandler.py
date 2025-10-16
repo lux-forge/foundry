@@ -4,7 +4,7 @@
 # Author: Luxforge
 # Utility to handle keypresses in the terminal
 
-from foundry.utils.logger import logger
+from foundry.logger.logger import logger
 
 class KeyHandler:
     """

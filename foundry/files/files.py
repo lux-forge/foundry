@@ -7,7 +7,7 @@
 import os
 import time
 from pathlib import Path
-from utils.logger import logger
+from foundry.logger.logger import logger
 from typing import List
 
 def write_file(filepath, data, retries=5, timeout=2, encoding="utf-8"):

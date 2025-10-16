@@ -5,8 +5,8 @@
 # Main menu launcher for Luxforge tools
 
 # Load the other classes and functions
-from menu.menu import Menu
-from utils.logger import logger
+from foundry.menu.menu import Menu
+from foundry.logger.logger import logger
 
 class MainMenu(Menu):
     """
@@ -17,29 +17,13 @@ class MainMenu(Menu):
         "desc": "Main menu for managing various tasks"  # Description
     }
 
-    
     def _set_options(self):
         logger.d("Setting main menu options - none needed as this will be dynamic")
-    def load_docker_menu(self):
-        from foundry.docker.menu import DockerMenu
-        DockerMenu(previous_menu=self).launch()
-    
-    def load_paths_menu(self):
-        from foundry.utils.paths import paths
-        paths.print_paths()
-        input("Press Enter to return to the menu...")
-    
-    def load_user_menu(self):
-        from foundry.users.users import UserMenu
-        UserMenu(previous_menu=self).launch()
     
     def load_games_menu(self):
         from foundry.games.menu import GamesMenu
         GamesMenu(previous_menu=self).launch()
 
-    def load_git_menu(self):
-        from foundry.git.git_menu import GitMenu
-        GitMenu(previous_menu=self).launch()
 if __name__ == "__main__":
     menu = MainMenu()
     menu.launch()

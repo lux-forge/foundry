@@ -13,9 +13,9 @@ import importlib
 from pathlib import Path
 
 # Load the other luxforge classes and functions
-from foundry.utils.logger import logger
-from foundry.utils.colours import Colours
-from foundry.utils.keyhandler import KeyHandler
+from foundry.logger.logger import logger
+from foundry.colours.colours import Colours
+from foundry.menu.keyhandler import KeyHandler
 
 class Menu(ABC):
     """
@@ -91,27 +91,6 @@ class Menu(ABC):
         # Start with numbers for each option as valid options
         self.valid_options_as_list = list(self.options.keys())
 
-        # Discover menus in the tree and log them
-        self.registry = []
-        self.discover_menus_in_tree()
-        logger.debug(f"Discovered {len(self.registry)} menus in tree.")
-
-        # For each discovered menu, add its keys to the options dict - the key is a string description of the menu
-        for menu in self.registry:
-            # Set the key as the next number in sequence
-            key= str(len(self.valid_options_as_list) + 1)
-            # Get the class and name
-            cls = menu["class"]
-            label = menu["name"]
-
-            # Define the action as a lambda to launch the menu
-            action = lambda cls=cls, parent=self: cls(previous_menu=parent).launch()
-
-            # Assign a numbered key or use MENU_META["keys"] if present
-            self.options[key] = (label, action)
-
-            # Add the key to the valid options list
-            self.valid_options_as_list.append(key)
            
         # if there is a previous menu, add back options to valid options
         if self.previous_menu:
@@ -581,17 +560,6 @@ class Menu(ABC):
                 else:
                     logger.error(f"Should not get to this point, break in logic!! Action: {action}")
 
-    def discover_menus_in_tree(self):
-        """
-        Recursively scan .py files under base_path.
-        Import modules and collect MENU_META dicts.
-        """
-
-        modDirs = self.__retrieve_mod_subdirs()
-        logger.debug(f"Discovered {len(modDirs)} module files in subdirectories.")
-        for mod_path in modDirs:
-            metas = self.__load_menu_meta(mod_path)
-            self.registry.append(metas) if metas else None
 
     def __resolve_module_path(self, loader_path: str, import_root: str, sub_dir: str = None) -> str:
         """

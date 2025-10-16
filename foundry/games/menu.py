@@ -5,7 +5,7 @@
 # Menu to host the games
 
 from foundry.menu.menu import Menu
-from foundry.utils.logger import logger
+from foundry.logger.logger import logger
 
 class GamesMenu(Menu):
     """

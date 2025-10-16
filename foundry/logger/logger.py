@@ -7,21 +7,16 @@
 import socket
 from pathlib import Path
 from datetime import datetime
-from dotenv import load_dotenv
 from time import sleep
-from foundry.utils.paths import paths
 import os
-
-from foundry.utils.colours import Colours
+from foundry.colours.colours import Colours
 
 class Logger:
     """
     Logger sets up a standardized logging configuration.
     ARGS:
         name: Logger name (default: "luxforge")
-        log_to_file: Whether to log to a file (default: False)
-        log_dir: Directory to store log files (default: "./logs")
-        level: Logging level (default: logging.INFO)
+        env_path: Path to the .env file for configuration (default: None, uses ./logger.env)
     METHODS:
         info(msg): Log an info message
         warning(msg): Log a warning message
@@ -30,6 +25,20 @@ class Logger:
         exception(msg): Log an exception message
     PROPERTIES:
         logger: The underlying logging.Logger instance
+    ENVIRONMENT VARIABLES:
+        LOG_DIR: Directory to store log files (default: "./logs")
+        LOG_TO_FILE: Whether to log to a file (default: "True")
+        LOG_TO_CONSOLE: Whether to log to console (default: "True")
+        LOG_TO_API: Whether to log to API endpoints (default: "False")
+        API_ENDPOINT: API endpoint URL (default: None)
+        API_KEY: API key for authentication (default: None)
+        LOG_TO_DB: Whether to log to a database (default: "False")
+        DB_CONNECTION_STRING: Database connection string (default: None)
+        LOGLEVEL: Logging level (default: "DEBUG")
+        DATE_FORMAT: Date format for timestamps (default: "%Y-%m-%d %H:%M:%S.%f")
+        NUMBER_OF_DIGITS_AFTER_DECIMAL: Number of decimal digits in timestamps (default: 3)
+        MAX_LOG_SIZE_MB: Maximum log file size in MB before rotation (default: 5)
+        MAX_LOG_BACKUP_COUNT: Number of backup log files to keep (default: 5)
     """
     # Standard logging levels, can be expanded if needed - add colours 
     LEVELS = {
@@ -41,22 +50,49 @@ class Logger:
         "CRITICAL": (50, "red")
     }
 
-    def __init__(self, env_path=f"{paths.config}/global/logs.env"):
+    def __init__(self, env_path=None):
         # Initialize logger settings using environment variables
         
+        if env_path is None:
+            env_path = os.path.join(os.path.dirname(__file__), "..", "logger.env")
+
         # Set the node name and user
         self.node = socket.gethostname()
         self.user = os.getenv("USER") or os.getenv("USERNAME") or "unknown"
 
-        # Load environment variables from the specified .env file - puts them into os.environ
-        load_dotenv(dotenv_path=env_path)
+        # Set the local vars with defaults
+        self.local_vars = {
+            "log_dir": "./logs", 
+            "log_to_file": True,
+            "log_to_console": True,
+            "log_to_api": False,
+            "api_endpoint": None,
+            "api_key": None,
+            "log_to_db": False,
+            "db_connection_string": None,
+            "log_level": "DEBUG",
+            "date_format": "%Y-%m-%d %H:%M:%S.%f",
+            "number_of_digits_after_decimal": 3,
+            "max_log_size_mb": 5,
+            "max_log_backup_count": 5,
+            "task_name": "init",
+        }
 
-        # Initialize current task and log filename
-        self.__task = "init"
+        # Apply them to the class
+        for var, default in self.local_vars.items():
+            setattr(self, var, default)
+
+        # Load environment variables from the specified .env file if it exists - despite the name, we won't inject into environment
+        if os.path.exists(env_path):
+            # Load the .env file
+            for line in open(env_path):
+                # Skip comments and empty lines
+                if line.strip() and not line.startswith('#'):
+
+                    # Load in the values
+                    key, value = line.strip().split('=', 1)
+                    self.__load_vars(key, value)
         
-        # Set the base directory for logs
-        self.log_dir = os.getenv("LOG_DIR", paths.logs)
-
         # Create the dir if it does not exist
         os.makedirs(self.log_dir, exist_ok=True)
 
@@ -72,9 +108,7 @@ class Logger:
         self.__log_to_console = os.getenv("LOG_TO_CONSOLE", "True").lower() == "true"
 
         # Set the log level
-        level_int = int( os.getenv("LOGLEVEL", "DEBUG"))
-        self.__level(level_int)
-
+        self.set_level(self.log_level)
         # Update the actual log directory
         self.__update_directory()
 
@@ -82,16 +116,33 @@ class Logger:
         self.__update_filename()
         
         # Load max log size and backup settings
-        self.__max_log_size(int(os.getenv("MAX_LOG_SIZE_MB", 5)))
-        self.__max_log_backup(int(os.getenv("MAX_LOG_BACKUP_COUNT", 5)))
+        self.max_log_size = int(os.getenv("MAX_LOG_SIZE_MB", 5))
+        self.max_log_backup = int(os.getenv("MAX_LOG_BACKUP_COUNT", 5))
 
         # Post a log entry indicating initialization
         self.i(f"Logger initialized for node '{self.node}' by user '{self.user}'")
-        self.i(f"Logging level set to {level_int} ({self.level})")
+        self.i(f"Logging level set to {self.log_level}")
 
         # Show the current taskname
-        self.__task
-    
+        self.task(self.task_name)
+
+    def __load_vars(self,k,v):
+        # Tie an environment variable to a class attribute with type conversion - ignore if not in our list
+        k = k.lower()
+        if k in self.local_vars:
+            if v.lower() in ["true", "false"]:
+                self[k] = v.lower() == "true"
+            elif v.isdigit():
+                self[k] = int(v)
+            else:
+                try:
+                    self[k] = float(v)
+                except ValueError:
+                    setattr(self, k, v)
+            
+            # Apply this to dev only
+            print(f"[FoundryLogger] Set {k} to {getattr(self, k)}")
+
     def __write(self, path, content, retries=3, timeout=1, encoding="utf-8"):
         for attempt in range(retries):
             try:
@@ -112,7 +163,7 @@ class Logger:
         self.__update_directory()
 
         # Create a safe task tag for the filename
-        task_tag = self.__task.replace(" ", "_") if self.__task else "untagged"
+        task_tag = self.task_name.replace(" ", "_") if self.task_name else "untagged"
         self.filename = os.path.join(self.log_dir, f"{task_tag}_{timestamp}.log")
     
     def __update_directory(self):
@@ -122,7 +173,7 @@ class Logger:
         month_path = datetime.now().strftime("%Y-%m")
         day_path = datetime.now().strftime("%Y-%m-%d")
         date_path = os.path.join(year_path, month_path, day_path)
-        self.log_dir = os.path.join(self.base_dir, self.__task, date_path)
+        self.log_dir = os.path.join(self.base_dir, self.task_name, date_path)
 
         # Ensure the log directory exists
         os.makedirs(self.log_dir, exist_ok=True)
@@ -130,14 +181,14 @@ class Logger:
     def task(self, task_name: str = None) -> str:
         # Method to set or get the current task name
         if task_name:
-            self.i(f"Switching task from '{self.__task}' to '{task_name}'")
-            self.__task = task_name
+            self.i(f"Switching task from '{self.task_name}' to '{task_name}'")
+            self.task_name = task_name
             # Update the filename to reflect the new task
             self.__update_filename()
             self.__update_directory()
         else:
-            self.i(f"Set task to: {self.__task}")
-        return self.__task
+            self.i(f"Set task to: {self.task_name}")
+        return self.task_name
 
     def __formatted_timestamp(self) -> str:
         # Return the current timestamp formatted according to date_format and decimal_digits
@@ -177,7 +228,7 @@ class Logger:
         line = f"[{timestamp}] [{node}] [{level}] {message}"
 
         # Log to file if enabled
-        if self.log_to_file():
+        if self.log_to_file:
 
             # Ensure the filename is set and directory exists
             if not hasattr(self, 'filename'):
@@ -190,7 +241,7 @@ class Logger:
             self.__write(self.filename, line + "\n", retries=5, timeout=1, encoding="utf-8")
 
         # Log to console if enabled
-        if self.log_to_console():
+        if self.log_to_console:
             # Get the colour
             colour = self.LEVELS[level][1]
             
@@ -205,8 +256,8 @@ class Logger:
         # Using the level numeric, return the key name. Default to INFO if not found
         return next((k for k, v in self.LEVELS.items() if v[0] == int_level), "INFO")
 
-    def __level(self, level) -> None:
-        # Getter and Setter for log level
+    def set_level(self, level) -> None:
+        # Setter for log level
 
         # Level can be a string, int, tuple or none
         if isinstance(level, int):
@@ -228,8 +279,6 @@ class Logger:
         
         # Show the current level
         self.i(f"Log level set to {self.level} ({self.__find_by_level(self.level[0])})")
-
-        return self.level
         
     # INFO level logging method
     def info(self, message):
@@ -268,89 +317,15 @@ class Logger:
     crit = critical # Alias for critical
     c = critical # Alias for critical
 
-    # CHANGELOG level logging method
-    def emit_changelog(self, event: str, context: dict = None):
-        """
-        Emit a structured changelog entry to the current log file.
 
-        ARGS:
-            event (str): Description of the event (e.g. "etcd quorum joined", "version bump")
-            context (dict): Optional metadata (e.g. {"version": "1.3.7", "node": "MARTEL"})
-        """
-        timestamp = self.__formatted_timestamp()
-        node = self.node
-        task = "changelog"
-        version = self.version_info.get("version", "unknown")
-
-        # Build changelog line
-        line = f"[version:{version}] {event}"
-        if context:
-            meta = " ".join([f"{k}:{v}" for k, v in context.items()])
-            line += f" | {meta}"
-
-        # Log it
-        self.log(line, level="CHANGELOG")
-    changelog = emit_changelog
-    ch = emit_changelog
-    cl = emit_changelog
-
-    def __max_log_size(self, size: int = None) -> int:
-        # Method to set or get max log size in MB
-        if size is not None:
-            self._max_log_size = size
-        return getattr(self, "_max_log_size", 5)  # Default to 5 MB if not set
-
-    def __max_log_backup(self, count: int = None) -> int:
-        # Method to set or get max log backup count
-        if count is not None:
-            self._max_log_backup = count
-        return getattr(self, "_max_log_backup", 5)  # Default to 5 backups if not set
-
-    def archive_old_logs(self):
-        # Method to archive old logs
-        pass
-
-    def clear_old_logs(self, days: int):
-        # Method to clear logs older than X days
-        pass
-
-    def log_to_file(self, value: bool = None) -> bool:
-        # Method to set or get log to file
-        if value is not None:
-            self.__log_to_file = value
-        return self.__log_to_file
-
-    def log_to_console(self, value: bool = None) -> bool:
-        # Method to set or get log to console
-        if value is not None:
-            self.__log_to_console = value
-        return self.__log_to_console
-
-    def log_level(self, level: str = None) -> int:
-        
-        # Method to set or get log level
-        if level and level.upper() in self.LEVELS:
-            self.level = self.LEVELS[level.upper()]
-        return self.level
     
-    def date_format(self, fmt: str = None) -> str:
-        # Method to get or set the date format
-        if fmt:
-            self.date_format = fmt
-        return self.date_format
-    
-    def decimal_digits(self, digits: int = None) -> int:
-        # Method to get or set the number of decimal digits
-        if digits is not None:
-            self.decimal_digits = digits
-        return self.decimal_digits
     
     def test_logger_levels(self):
         timestamp = self.__formatted_timestamp()
         node = self.node
         task = "test_logger_levels"
         self.i(f"Testing logger levels at {timestamp} on node {node} for task {task}")
-        self.__task(task)
+        self.task(task)
         self.i(f"Current log level set to {self.level}")
         self.level = self.LEVELS["DEBUG"]
         self.info("This is an info message.")
@@ -358,13 +333,11 @@ class Logger:
         self.error("This is an error message.")
         self.debug("This is a debug message.")
         self.critical("This is a critical message.")
-        self.emit_changelog("Version bump", {"version": "1.0.1", "node": self.node})
         
 # Create a default logger instance for module-level use
 logger = Logger()
 
 if __name__ == "__main__":
     # Test the logger functionality
-    print("[INFO] Testing luxforgeLogger functionality...")
-    luxforgeLogger = Logger()
-    luxforgeLogger.test_logger_levels()
+    print("[INFO] Testing logger functionality...")
+    logger.test_logger_levels()
