@@ -317,9 +317,7 @@ class Logger:
     crit = critical # Alias for critical
     c = critical # Alias for critical
 
-
-    
-    
+    # Test method to demonstrate logging at all levels
     def test_logger_levels(self):
         timestamp = self.__formatted_timestamp()
         node = self.node
@@ -328,10 +326,10 @@ class Logger:
         self.task(task)
         self.i(f"Current log level set to {self.level}")
         self.level = self.LEVELS["DEBUG"]
+        self.debug("This is a debug message.")
         self.info("This is an info message.")
         self.warning("This is a warning message.")
         self.error("This is an error message.")
-        self.debug("This is a debug message.")
         self.critical("This is a critical message.")
         
 # Create a default logger instance for module-level use
