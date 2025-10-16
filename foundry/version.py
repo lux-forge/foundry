@@ -1,11 +1,12 @@
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __modified__ = "2025-10-16"
 __timestamp__ = "2025-10-16T21:23:00+01:00"
 __author__ = "LuxForge"
 __status__ = "Production"
 
 __changelog__ = [
-    "1.0.3 - 2025-10-16: Added token authentication for PyPI. Added automation to use it.",
+    f"{__version__} - 2025-10-16: Added debug log messages to logger tests. Added README for logger.env. Updated logger env path to ./Logs.",
+    f"{__version__} - 2025-10-16: .",
 ]
 
 __audit_tags__ = [
