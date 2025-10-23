@@ -86,30 +86,24 @@ class KeyHandler:
     def __get_unix_key(self):
         """
         Handle keypresses specifically for Unix-like systems using termios and tty.
+        Returns interpreted key (e.g. 'UP', 'ENTER', 'C') for consistency with Windows.
         """
         logger.debug("Unix-like system detected for keypress handling. Waiting for key...")
-        # Get the file descriptor for stdin
         fd = self.sys.stdin.fileno()
-
-        # Save the current terminal settings
         old = self.termios.tcgetattr(fd)
 
-        # Set terminal to raw mode
         try:
             self.tty.setraw(fd)
-            
-            # Read a single character
             ch1 = self.sys.stdin.read(1)
-            
+
             # Handle escape sequences for special keys
             if ch1 == '\x1b':
                 ch2 = self.sys.stdin.read(2)
-                return ch1 + ch2
-            
-            # Return the single character for regular keys
-            return ch1
-        
-        # Restore the original terminal settings
+                raw_key = ch1 + ch2
+            else:
+                raw_key = ch1
+            return self.interpret(raw_key)
+
         finally:
             self.termios.tcsetattr(fd, self.termios.TCSADRAIN, old)
 

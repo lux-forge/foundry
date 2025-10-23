@@ -1,12 +1,12 @@
 __version__ = "1.0.4"
-__modified__ = "2025-10-16"
-__timestamp__ = "2025-10-16T21:23:00+01:00"
+__modified__ = "2025-10-23"
+__timestamp__ = "2025-10-23T20:29:21.181954+01:00"
 __author__ = "LuxForge"
 __status__ = "Production"
 
 __changelog__ = [
     f"{__version__} - 2025-10-16: Added debug log messages to logger tests. Added README for logger.env. Updated logger env path to ./Logs.",
-    f"{__version__} - 2025-10-16: .",
+    f"{__version__} - 2025-10-18: Modified the name from luxforge-foundry to foundry for PyPI packaging.",
 ]
 
 __audit_tags__ = [

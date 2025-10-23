@@ -1,0 +1,20 @@
+date: "2025-10-23"
+author: "Luxforge"
+changes:
+  - change: "Unified key interpretation across platforms"
+    notes: >
+      Patched `__get_unix_key()` to call `interpret()` internally, ensuring consistent key normalization across Windows and Unix-like systems.
+      Arrow keys and control sequences now return standardized values (e.g. 'UP', 'ENTER'), enabling clean menu validation and suppressing logic breaks.
+  - change: "Updated Python interpreter path in VSCode settings"
+    notes: >
+      Changed the default Python interpreter path in `.vscode/settings.json` to point to Python 3.14 within the virtual environment.
+  - change: "Refined import statement in users.py"
+    notes: >
+      Corrected the import statement in `docker/users/users.py` to properly import the `Menu` class from the `foundry` package.
+  - change: "Removed redundant key interpretation logging"
+    notes: >
+      Eliminated duplicate logging of interpreted keys in `keyhandler.py` to streamline debug output and improve performance.
+  - change: "Cleaned up version.py changelog"
+    notes: >
+      Removed outdated changelog entries from `foundry/version.py` to maintain clarity and relevance in version tracking.
+

@@ -1,0 +1,11 @@
+date: "2025-10-16"
+author: "Luxforge"
+changes:
+  - change: "Added token authentication for PyPI"
+    notes: >
+      Introduced support for secure publishing using a PyPI token stored in `.secrets/pypi.token`.
+      Credentials are now read dynamically during the publish step to avoid hardcoding.
+  - change: "Automated PyPI push workflow"
+    notes: >
+      Integrated `twine upload` into the PublishMenu with token-based authentication.
+      Enables one-click publishing from the CLI with version sync and build validation.
